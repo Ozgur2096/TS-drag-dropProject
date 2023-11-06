@@ -72,7 +72,15 @@ class ProjectList {
         this.element = importedNode.firstElementChild;
         this.element.id = `${this.type}-projects`;
         projectState.addListener((projects) => {
-            this.assignedProjects = projects;
+            const relevantProjects = projects.filter(project => {
+                if (this.type === 'active') {
+                    return project.status === ProjectStatus.active;
+                }
+                else {
+                    return project.status === ProjectStatus.finished;
+                }
+            });
+            this.assignedProjects = relevantProjects;
             this.renderProjects();
         });
         this.attach();
@@ -80,6 +88,7 @@ class ProjectList {
     }
     renderProjects() {
         const listEl = document.getElementById(`${this.type}-projects-list`);
+        listEl.innerHTML = '';
         for (const projectItem of this.assignedProjects) {
             const listItemEl = document.createElement('li');
             listItemEl.textContent = projectItem.title;
