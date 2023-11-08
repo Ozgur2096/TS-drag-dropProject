@@ -36,6 +36,16 @@ class ProjectState extends State {
     addProject(title, description, numOfPeople) {
         const newProject = new Project(Math.random().toString(), title, description, numOfPeople, ProjectStatus.active);
         this.projects.push(newProject);
+        this.updateListeners();
+    }
+    moveProject(projectId, newStatus) {
+        const movedProject = this.projects.find(project => project.id === projectId);
+        if (movedProject && movedProject.status !== newStatus) {
+            movedProject.status = newStatus;
+        }
+        this.updateListeners();
+    }
+    updateListeners() {
         for (const listenerFn of this.listeners) {
             listenerFn(this.projects.slice());
         }
@@ -97,7 +107,24 @@ class ProjectItem extends Component {
         this.configure();
         this.renderContent();
     }
-    configure() { }
+    dragStartHandler(event) {
+        var _a;
+        (_a = event.dataTransfer) === null || _a === void 0 ? void 0 : _a.setData('text/plain', this.project.id);
+        event.dataTransfer.effectAllowed = 'move';
+        console.log('drag start: ', event);
+    }
+    dragEndHandler(event) {
+        console.log('drag end: ', event);
+    }
+    configure() {
+        this.element.setAttribute('draggable', 'true');
+        this.element.addEventListener('dragstart', e => {
+            this.dragStartHandler(e);
+        });
+        this.element.addEventListener('dragend', e => {
+            this.dragEndHandler(e);
+        });
+    }
     renderContent() {
         this.element.querySelector('h2').textContent = this.project.title;
         this.element.querySelector('h3').textContent = this.persons + ' assigned';
@@ -112,14 +139,35 @@ class ProjectList extends Component {
         this.configure();
         this.renderContent();
     }
-    renderProjects() {
-        const listEl = document.getElementById(`${this.type}-projects-list`);
-        listEl.innerHTML = '';
-        for (const projectItem of this.assignedProjects) {
-            new ProjectItem(this.element.querySelector('ul').id, projectItem);
+    dragOverHandler(event) {
+        if (event.dataTransfer && event.dataTransfer.types[0] === 'text/plain') {
+            event.preventDefault();
+            const listEl = this.element.querySelector('ul');
+            listEl === null || listEl === void 0 ? void 0 : listEl.classList.add('droppable');
         }
     }
+    dropHandler(event) {
+        var _a;
+        console.log('drop handler: ', event);
+        const projectId = (_a = event.dataTransfer) === null || _a === void 0 ? void 0 : _a.getData('text/plain');
+        projectState.moveProject(projectId, this.type === 'active' ? ProjectStatus.active : ProjectStatus.finished);
+        const listEl = this.element.querySelector('ul');
+        listEl === null || listEl === void 0 ? void 0 : listEl.classList.remove('droppable');
+    }
+    dragLeaveHandler(_) {
+        const listEl = this.element.querySelector('ul');
+        listEl === null || listEl === void 0 ? void 0 : listEl.classList.remove('droppable');
+    }
     configure() {
+        this.element.addEventListener('dragover', e => {
+            this.dragOverHandler(e);
+        });
+        this.element.addEventListener('dragleave', e => {
+            this.dragLeaveHandler(e);
+        });
+        this.element.addEventListener('drop', e => {
+            this.dropHandler(e);
+        });
         projectState.addListener((projects) => {
             const relevantProjects = projects.filter(project => {
                 if (this.type === 'active') {
@@ -138,6 +186,13 @@ class ProjectList extends Component {
         this.element.querySelector('ul').id = listId;
         this.element.querySelector('h2').textContent =
             this.type.toUpperCase() + 'PROJECTS';
+    }
+    renderProjects() {
+        const listEl = document.getElementById(`${this.type}-projects-list`);
+        listEl.innerHTML = '';
+        for (const projectItem of this.assignedProjects) {
+            new ProjectItem(this.element.querySelector('ul').id, projectItem);
+        }
     }
 }
 class ProjectInput extends Component {
